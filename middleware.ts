@@ -1,7 +1,7 @@
 // middleware.ts
 import type { NextFetchEvent, NextRequest } from 'next/server'
 import { kasadaHandler } from './lib/kasada/kasada-server'
-
+import { authConfig } from '@/auth.config'
 const MAX_REQUESTS = 50
 const WINDOW_SIZE_MS = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
 
@@ -69,5 +69,12 @@ export async function middleware(req: NextRequest, ev: NextFetchEvent) {
 }
 
 export const config = {
-  matcher: ['/', '/chat/:id*', '/share/:id*']
+  matcher: [
+    '/',
+    '/chat/:id*',
+    '/share/:id*',
+    '/api/auth/:path*',
+    '/((?!_next/static|_next/image|favicon.ico|public/|api/|auth/).*)',
+    '/((?!149e9513-01fa-4fb0-aad4-566afd725d1b).*)'
+  ]
 }
