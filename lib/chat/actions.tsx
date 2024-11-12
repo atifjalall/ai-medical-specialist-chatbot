@@ -38,7 +38,7 @@ async function analyzeImage(imageBase64: string) {
   ;(async () => {
     try {
       const imageData = imageBase64.replace(/^data:image\/\w+;base64,/, '')
-      
+
       // Get the last user message as the question
       const previousMessages = aiState.get().messages
       const lastUserMessage = previousMessages
@@ -49,12 +49,15 @@ async function analyzeImage(imageBase64: string) {
       const userImageMessage = {
         id: nanoid(),
         role: 'user',
-        content: lastUserMessage?.content || 'Please analyze this medical image',
-        attachments: [{
-          type: 'image',
-          data: imageBase64,
-          mimeType: 'image/jpeg'
-        }],
+        content:
+          lastUserMessage?.content || 'Please analyze this medical image',
+        attachments: [
+          {
+            type: 'image',
+            data: imageBase64,
+            mimeType: 'image/jpeg'
+          }
+        ],
         metadata: {
           timestamp: new Date().toISOString(),
           type: 'image_analysis',
@@ -64,10 +67,7 @@ async function analyzeImage(imageBase64: string) {
 
       aiState.update({
         ...aiState.get(),
-        messages: [
-          ...aiState.get().messages,
-          userImageMessage
-        ],
+        messages: [...aiState.get().messages, userImageMessage],
         interactions: [
           ...(aiState.get().interactions || []),
           userImageMessage.content
@@ -134,14 +134,8 @@ async function analyzeImage(imageBase64: string) {
 
       aiState.update({
         ...aiState.get(),
-        messages: [
-          ...aiState.get().messages,
-          assistantMessage
-        ],
-        interactions: [
-          ...(aiState.get().interactions || []),
-          text
-        ]
+        messages: [...aiState.get().messages, assistantMessage],
+        interactions: [...(aiState.get().interactions || []), text]
       })
 
       spinnerStream.done(null)
@@ -149,7 +143,8 @@ async function analyzeImage(imageBase64: string) {
       uiStream.done()
     } catch (error) {
       console.error('Image analysis error:', error)
-      const errorMessage = "I apologize, but I encountered an error analyzing the image. Please ensure it's a clear medical image and try again. For accurate medical evaluation, please consult a healthcare professional."
+      const errorMessage =
+        "I apologize, but I encountered an error analyzing the image. Please ensure it's a clear medical image and try again. For accurate medical evaluation, please consult a healthcare professional."
 
       messageStream.update(<BotMessage content={errorMessage} />)
 
@@ -189,7 +184,7 @@ async function submitUserMessage(content: string) {
   await rateLimit()
 
   const aiState = getMutableAIState()
-  
+
   // Get previous context
   const previousMessages = aiState.get().messages
   const lastAnalysis = previousMessages
@@ -198,7 +193,7 @@ async function submitUserMessage(content: string) {
     .find(msg => msg.metadata?.type === 'image_analysis_response')
 
   // Create context for the AI
-  const contextualContent = lastAnalysis 
+  const contextualContent = lastAnalysis
     ? `Previous analysis: ${lastAnalysis.content}\n\nUser question: ${content}`
     : content
 
@@ -235,30 +230,42 @@ async function submitUserMessage(content: string) {
       const result = await streamText({
         model: google('models/gemini-1.5-flash'),
         system: `\
-        You are Med AI, an AI medical assistant designed to help users with general medical queries and concerns.
-        
-        Context awareness:
-        - If responding to questions about a previously analyzed image, reference the image analysis when relevant
-        - Maintain context from previous messages when answering follow-up questions
-        
-        Key guidelines:
-        1. Never provide definitive diagnoses
-        2. Always recommend consulting healthcare professionals
-        3. Focus on general health information and educational content
-        4. Flag emergency symptoms immediately
-        5. Maintain medical privacy
-        6. Only provide evidence-based information
-        7. Clearly state you are an AI assistant
-        8. Don't write code
-        9. Only answer medical-related queries
+You are Medical AI, an AI medical specialist designed to help users with general medical queries and concerns.
 
-        If symptoms suggest an emergency, immediately recommend seeking urgent medical care.`,
+Context Awareness:
+
+If responding to questions about a previously analyzed image, reference the image analysis when relevant.
+Maintain context from previous messages when answering follow-up questions.
+Key Guidelines:
+
+Never provide definitive diagnoses.
+Always recommend consulting healthcare professionals.
+Focus on general health information and educational content.
+Flag emergency symptoms immediately.
+Maintain medical privacy.
+Only provide evidence-based information.
+Clearly state you are an AI assistant.
+Don't write code.
+Only answer medical-related queries.
+Ask relevant follow-up questions to gather more information about the user's condition, such as:
+Duration and severity of symptoms
+Associated symptoms
+Medical history and previous diagnoses
+Current medications
+Recent activities or exposures
+Use the gathered information to provide general advice and education without making a diagnosis.
+If symptoms suggest an emergency, immediately recommend seeking urgent medical care.
+Ensure all interactions are compassionate and supportive, acknowledging the user's concerns.`,
         messages: [
           // Include recent context
-          ...(lastAnalysis ? [{
-            role: 'assistant',
-            content: `Previous analysis: ${lastAnalysis.content}`
-          }] : []),
+          ...(lastAnalysis
+            ? [
+                {
+                  role: 'assistant',
+                  content: `Previous analysis: ${lastAnalysis.content}`
+                }
+              ]
+            : []),
           // Current question
           {
             role: 'user',
@@ -346,10 +353,10 @@ export const AI = createAI<AIState, UIState>({
     analyzeImage
   },
   initialUIState: [],
-  initialAIState: { 
-    chatId: nanoid(), 
-    interactions: [], 
-    messages: [] 
+  initialAIState: {
+    chatId: nanoid(),
+    interactions: [],
+    messages: []
   },
   onGetUIState: async () => {
     'use server'
@@ -391,27 +398,29 @@ export const getUIStateFromAIState = (aiState: Chat) => {
     .filter(message => message.role !== 'system')
     .map((message, index) => ({
       id: `${aiState.chatId}-${index}`,
-      display: message.role === 'assistant' ? (
-        <BotMessage content={message.content} />
-      ) : message.role === 'user' ? (
-        <div>
-          <UserMessage showAvatar>
-            <div className="flex flex-col gap-2">
-              <div>{message.content}</div>
-              {message.attachments?.length > 0 && message.attachments[0].type === 'image' && (
-                <div className="relative w-full max-w-[200px] mt-2"> 
-                  <img 
-                    src={message.attachments[0].data} 
-                    alt="User uploaded image"
-                    className="rounded-lg shadow-md w-full h-auto"
-                  />
-                </div>
-              )}
-            </div>
-          </UserMessage>
-        </div>
-      ) : (
-        <BotMessage content={message.content} />
-      )
+      display:
+        message.role === 'assistant' ? (
+          <BotMessage content={message.content} />
+        ) : message.role === 'user' ? (
+          <div>
+            <UserMessage showAvatar>
+              <div className="flex flex-col gap-2">
+                <div>{message.content}</div>
+                {message.attachments?.length > 0 &&
+                  message.attachments[0].type === 'image' && (
+                    <div className="relative w-full max-w-[200px] mt-2">
+                      <img
+                        src={message.attachments[0].data}
+                        alt="User uploaded image"
+                        className="rounded-lg shadow-md w-full h-auto"
+                      />
+                    </div>
+                  )}
+              </div>
+            </UserMessage>
+          </div>
+        ) : (
+          <BotMessage content={message.content} />
+        )
     }))
 }

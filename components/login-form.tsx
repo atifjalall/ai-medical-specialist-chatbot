@@ -1,29 +1,56 @@
-'use client';
+// components/login-form.tsx
+'use client'
 
-import { useFormState, useFormStatus } from 'react-dom';
-import { authenticate } from '@/app/login/actions';
-import Link from 'next/link';
-import { useEffect } from 'react';
-import { toast } from 'sonner';
-import { IconSpinner } from './ui/icons';
-import { getMessageFromCode } from '@/lib/utils';
-import { useRouter } from 'next/navigation';
-import { FcGoogle } from 'react-icons/fc'; // Import the Google icon
+import { useFormState, useFormStatus } from 'react-dom'
+import { authenticate } from '@/app/login/actions'
+import Link from 'next/link'
+import { useEffect } from 'react'
+import { toast } from 'sonner'
+import { IconSpinner } from './ui/icons'
+import { getMessageFromCode } from '@/lib/utils'
+import { useRouter } from 'next/navigation'
+import { FcGoogle } from 'react-icons/fc'
+import { signIn } from 'next-auth/react'
+import { FaApple } from 'react-icons/fa'
 
 export default function LoginForm() {
-  const router = useRouter();
-  const [result, dispatch] = useFormState(authenticate, undefined);
+  const router = useRouter()
+  const [result, dispatch] = useFormState(authenticate, undefined)
 
   useEffect(() => {
     if (result) {
       if (result.type === 'error') {
-        toast.error(getMessageFromCode(result.resultCode));
+        toast.error(getMessageFromCode(result.resultCode))
       } else {
-        toast.success(getMessageFromCode(result.resultCode));
-        router.refresh();
+        toast.success(getMessageFromCode(result.resultCode))
+        router.refresh()
       }
     }
-  }, [result, router]);
+  }, [result, router])
+
+  const handleGoogleLogin = async () => {
+    try {
+      const result = await signIn('google', {
+        callbackUrl: '/',
+        redirect: true
+      })
+      
+      if (result?.error) {
+        toast.error('Failed to sign in with Google')
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error)
+      toast.error('Failed to sign in with Google')
+    }
+  }
+
+  const handleAppleLogin = async () => {
+    try {
+      await signIn('apple', { callbackUrl: '/' })
+    } catch (error) {
+      toast.error('Failed to sign in with Apple')
+    }
+  }
 
   return (
     <form
@@ -71,21 +98,45 @@ export default function LoginForm() {
             </div>
           </div>
         </div>
+
         <LoginButton />
 
-        {/* Forgot Password Link */}
-        <Link href="/forgot-password" className="text-sm text-zinc-400">
-          Forgot Password?
-        </Link>
+        <div className="my-4 flex items-center justify-between">
+          <div className="h-px flex-1 bg-zinc-300"></div>
+          <span className="mx-4 text-sm text-zinc-400">or</span>
+          <div className="h-px flex-1 bg-zinc-300"></div>
+        </div>
 
-        {/* Separator */}
-        <div className="my-4 border-t border-zinc-300 w-full" />
-
-        {/* Google Login Button */}
-        <button className="flex h-10 w-full items-center justify-center rounded-lg border bg-white shadow-md hover:bg-gray-100">
-          <FcGoogle className="h-5 w-5 mr-2" /> {/* Google Icon */}
-          <span className="text-sm font-semibold text-zinc-800">Continue with Google</span>
+        <button
+          type="button"
+          onClick={handleGoogleLogin}
+          className="flex h-10 w-full items-center justify-center rounded-lg border bg-white shadow-md hover:bg-gray-100 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+        >
+          <FcGoogle className="h-5 w-5 mr-2" />
+          <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-200">
+            Continue with Google
+          </span>
         </button>
+        <div className="h-3"></div>
+        <button
+          type="button"
+          onClick={handleAppleLogin}
+          className="flex h-10 w-full items-center justify-center rounded-lg border bg-black hover:bg-zinc-900 dark:bg-black dark:hover:bg-zinc-900"
+        >
+          <FaApple className="h-5 w-5 mr-2 text-white" />
+          <span className="text-sm font-semibold text-white">
+            Continue with Apple
+          </span>
+        </button>
+
+        <div className="mt-4 text-center">
+          <Link
+            href="/forgot-password"
+            className="text-sm text-zinc-400 hover:text-zinc-600"
+          >
+            Forgot Password?
+          </Link>
+        </div>
       </div>
 
       <Link
@@ -95,11 +146,11 @@ export default function LoginForm() {
         No account yet? <div className="font-semibold underline">Sign up</div>
       </Link>
     </form>
-  );
+  )
 }
 
 function LoginButton() {
-  const { pending } = useFormStatus();
+  const { pending } = useFormStatus()
 
   return (
     <button
@@ -108,5 +159,5 @@ function LoginButton() {
     >
       {pending ? <IconSpinner /> : 'Log in'}
     </button>
-  );
+  )
 }

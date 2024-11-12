@@ -78,7 +78,8 @@ export interface Session {
   user: {
     id: string
     email: string
-  }
+  },
+  accessToken?: string
 }
 
 // Auth result type
@@ -105,6 +106,23 @@ export interface User extends Document {
   lastName: string
   dob: string
   gender: string
+  fullName?: string
+  image?: string
+  googleId?: string
+  locale?: string
+  verifiedEmail?: boolean
+  birthday?: string
+  phoneNumber?: string
+  address?: {
+    formatted?: string
+    streetAddress?: string
+    locality?: string
+    region?: string
+    postalCode?: string
+    country?: string
+  }
+  createdAt: Date
+  provider: 'google' | 'credentials'
 }
 
 // Export specific MongoDB types if needed
