@@ -78,6 +78,7 @@ export interface Session {
   user: {
     id: string
     email: string
+    name: any
   },
   accessToken?: string
 }
@@ -107,6 +108,7 @@ export interface User extends Document {
   dob: string
   gender: string
   fullName?: string
+  name?: string
   image?: string
   googleId?: string
   locale?: string

@@ -6,7 +6,7 @@ import {
   createStreamableUI,
   getMutableAIState,
   getAIState,
-  createStreamableValue
+  createStreamableValue,
 } from 'ai/rsc'
 
 import { BotCard, BotMessage } from '@/components/stocks'
@@ -24,6 +24,32 @@ import { rateLimit } from './ratelimit'
 const genAI = new GoogleGenerativeAI(
   process.env.GOOGLE_GENERATIVE_AI_API_KEY || ''
 )
+
+const SYSTEM_PROMPT = `\
+You are Med AI, an AI medical assistant designed to help users with general medical queries and concerns.
+
+Context awareness:
+- If responding to questions about a previously analyzed image, reference the image analysis when relevant
+- Maintain context from previous messages when answering follow-up questions
+
+Key guidelines:
+1. Never provide definitive diagnoses
+2. Always recommend consulting healthcare professionals
+3. Focus on general health information and educational content
+4. Flag emergency symptoms immediately
+5. Maintain medical privacy
+6. Only provide evidence-based information
+7. Clearly state you are an AI assistant
+8. Don't write code
+9. Only answer medical-related queries
+
+If symptoms suggest an emergency, immediately recommend seeking urgent medical care.`
+
+async function validateInput(content: string) {
+  if (!content?.trim()) {
+    throw new Error('Message content cannot be empty')
+  }
+}
 
 async function analyzeImage(imageBase64: string) {
   'use server'
@@ -74,7 +100,7 @@ async function analyzeImage(imageBase64: string) {
         ]
       })
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-002' })
 
       // Enhanced medical analysis prompt
       const prompt = `Please provide a comprehensive medical analysis of this image using the following structure:
@@ -103,9 +129,7 @@ async function analyzeImage(imageBase64: string) {
       - Any medical condition requires proper evaluation by a healthcare professional
       - If you're experiencing concerning symptoms, seek immediate medical attention
       - Only a qualified healthcare provider can provide accurate diagnosis and treatment
-      - Medical decisions should not be made based on this AI analysis
-
-      Please provide the analysis in a clear, organized format following these sections.`
+      - Medical decisions should not be made based on this AI analysis`
 
       const imagePart = {
         inlineData: {
@@ -181,145 +205,117 @@ async function analyzeImage(imageBase64: string) {
 async function submitUserMessage(content: string) {
   'use server'
 
-  await rateLimit()
+  try {
+    await validateInput(content)
+    await rateLimit()
 
-  const aiState = getMutableAIState()
+    const aiState = getMutableAIState()
+    const spinnerStream = createStreamableUI(<SpinnerMessage />)
+    const messageStream = createStreamableUI(null)
+    const uiStream = createStreamableUI()
+    const textStream = createStreamableValue('')
 
-  // Get previous context
-  const previousMessages = aiState.get().messages
-  const lastAnalysis = previousMessages
-    .slice()
-    .reverse()
-    .find(msg => msg.metadata?.type === 'image_analysis_response')
-
-  // Create context for the AI
-  const contextualContent = lastAnalysis
-    ? `Previous analysis: ${lastAnalysis.content}\n\nUser question: ${content}`
-    : content
-
-  // Add user's new message
-  aiState.update({
-    ...aiState.get(),
-    messages: [
-      ...aiState.get().messages,
-      {
-        id: nanoid(),
-        role: 'user',
-        content: content,
-        metadata: {
-          timestamp: new Date().toISOString()
-        }
+    // Add user's new message
+    const userMessage = {
+      id: nanoid(),
+      role: 'user',
+      content: content,
+      metadata: {
+        timestamp: new Date().toISOString()
       }
-    ]
-  })
-
-  // Prepare message history with context
-  const history = aiState.get().messages.map(message => ({
-    role: message.role,
-    content: message.content,
-    metadata: message.metadata
-  }))
-
-  const textStream = createStreamableValue('')
-  const spinnerStream = createStreamableUI(<SpinnerMessage />)
-  const messageStream = createStreamableUI(null)
-  const uiStream = createStreamableUI()
-
-  ;(async () => {
-    try {
-      const result = await streamText({
-        model: google('models/gemini-1.5-flash'),
-        system: `\
-You are Medical AI, an AI medical specialist designed to help users with general medical queries and concerns.
-
-Context Awareness:
-
-If responding to questions about a previously analyzed image, reference the image analysis when relevant.
-Maintain context from previous messages when answering follow-up questions.
-Key Guidelines:
-
-Never provide definitive diagnoses.
-Always recommend consulting healthcare professionals.
-Focus on general health information and educational content.
-Flag emergency symptoms immediately.
-Maintain medical privacy.
-Only provide evidence-based information.
-Clearly state you are an AI assistant.
-Don't write code.
-Only answer medical-related queries.
-Ask relevant follow-up questions to gather more information about the user's condition, such as:
-Duration and severity of symptoms
-Associated symptoms
-Medical history and previous diagnoses
-Current medications
-Recent activities or exposures
-Use the gathered information to provide general advice and education without making a diagnosis.
-If symptoms suggest an emergency, immediately recommend seeking urgent medical care.
-Ensure all interactions are compassionate and supportive, acknowledging the user's concerns.`,
-        messages: [
-          // Include recent context
-          ...(lastAnalysis
-            ? [
-                {
-                  role: 'assistant',
-                  content: `Previous analysis: ${lastAnalysis.content}`
-                }
-              ]
-            : []),
-          // Current question
-          {
-            role: 'user',
-            content: contextualContent
-          }
-        ]
-      })
-
-      let textContent = ''
-      spinnerStream.done(null)
-
-      for await (const delta of result.fullStream) {
-        if (delta.type === 'text-delta') {
-          textContent += delta.textDelta
-          messageStream.update(<BotMessage content={textContent} />)
-
-          aiState.update({
-            ...aiState.get(),
-            messages: [
-              ...aiState.get().messages,
-              {
-                id: nanoid(),
-                role: 'assistant',
-                content: textContent,
-                metadata: {
-                  timestamp: new Date().toISOString(),
-                  relatedToAnalysis: lastAnalysis?.id
-                }
-              }
-            ]
-          })
-        }
-      }
-
-      uiStream.done()
-      textStream.done()
-      messageStream.done()
-    } catch (e) {
-      console.error(e)
-      const error = new Error(
-        'The AI got rate limited, please try again later.'
-      )
-      uiStream.error(error)
-      textStream.error(error)
-      messageStream.error(error)
-      aiState.done()
     }
-  })()
 
-  return {
-    id: nanoid(),
-    attachments: uiStream.value,
-    spinner: spinnerStream.value,
-    display: messageStream.value
+    aiState.update({
+      ...aiState.get(),
+      messages: [...aiState.get().messages, userMessage]
+    })
+
+    ;(async () => {
+      try {
+        const model = genAI.getGenerativeModel({ 
+          model: 'gemini-1.5-flash-002',
+          generationConfig: {
+            temperature: 0.9,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+          },
+        })
+
+        const chat = model.startChat({
+          history: [
+            {
+              role: "user",
+              parts: [{ text: SYSTEM_PROMPT }]
+            },
+            {
+              role: "model",
+              parts: [{ text: "I understand and will follow these guidelines." }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.9,
+            topK: 1,
+            topP: 1,
+            maxOutputTokens: 2048,
+          },
+        });
+
+        const result = await chat.sendMessage(content);
+        const response = await result.response;
+        const text = response.text();
+
+        spinnerStream.done(null)
+        
+        messageStream.update(<BotMessage content={text} />)
+
+        aiState.update({
+          ...aiState.get(),
+          messages: [
+            ...aiState.get().messages,
+            {
+              id: nanoid(),
+              role: 'assistant',
+              content: text,
+              metadata: {
+                timestamp: new Date().toISOString()
+              }
+            }
+          ]
+        })
+
+        uiStream.done()
+        textStream.done()
+        messageStream.done()
+
+      } catch (error) {
+        console.error('Detailed error:', {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          data: error.data,
+          requestBody: error?.requestBodyValues
+        })
+
+        const errorMessage = 'An error occurred while processing your request. Please try again.'
+        messageStream.update(<BotMessage content={errorMessage} />)
+        
+        spinnerStream.error(error)
+        messageStream.done()
+        uiStream.error(error)
+      }
+    })()
+
+    return {
+      id: nanoid(),
+      attachments: uiStream.value,
+      spinner: spinnerStream.value,
+      display: messageStream.value
+    }
+
+  } catch (error) {
+    console.error('Message submission error:', error)
+    throw error
   }
 }
 

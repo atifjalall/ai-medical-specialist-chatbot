@@ -6,8 +6,7 @@ import { type AI } from '@/lib/chat/actions'
 import { Button } from '@/components/ui/button'
 import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import AddPhotoAlternateRoundedIcon from '@mui/icons-material/AddPhotoAlternateRounded'
-import EqualizerRoundedIcon from '@mui/icons-material/EqualizerRounded';
-import { FaTimes } from 'react-icons/fa'
+import RecordVoiceOverRoundedIcon from '@mui/icons-material/RecordVoiceOverRounded';import { FaTimes } from 'react-icons/fa'
 import { MdLiveHelp } from 'react-icons/md' // Live chat icon import
 import {
   Tooltip,
@@ -84,7 +83,7 @@ export function PromptForm({
 
     let messageContent = value || 'Please analyze this medical image.'
 
-    setMessages(currentMessages => [
+    setMessages((currentMessages: any) => [
       ...currentMessages,
       {
         id: nanoid(),
@@ -108,10 +107,10 @@ export function PromptForm({
     try {
       if (uploadedImage) {
         const responseMessage = await analyzeImage(uploadedImage)
-        setMessages(currentMessages => [...currentMessages, responseMessage])
+        setMessages((currentMessages: any) => [...currentMessages, responseMessage])
       } else {
         const responseMessage = await submitUserMessage(value)
-        setMessages(currentMessages => [...currentMessages, responseMessage])
+        setMessages((currentMessages: any) => [...currentMessages, responseMessage])
       }
     } catch (error) {
       toast.error('Failed to send message. Please try again.')
@@ -219,7 +218,7 @@ export function PromptForm({
                 size="icon"
                 className="bg-transparent text-zinc-500 dark:text-zinc-400 rounded-full hover:bg-zinc-200 dark:hover:bg-zinc-700"
               >
-                <EqualizerRoundedIcon sx={{ fontSize: 28 }}/>
+                <RecordVoiceOverRoundedIcon sx={{ fontSize: 28 }}/>
                 <span className="sr-only">Live Chat</span>
               </Button>
             </TooltipTrigger>

@@ -27,6 +27,7 @@ export async function getUser(email: string): Promise<User | null> {
         password: user.password,
         salt: user.salt,
         firstName: user.firstName,
+        name: user.name,           
       } as User; // Cast to User type
     }
 

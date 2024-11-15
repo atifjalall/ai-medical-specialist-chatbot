@@ -13,7 +13,7 @@
     "format:check": "prettier --check \"{app,lib,components}**/*.{ts,tsx,mdx}\" --cache"
   },
   "dependencies": {
-    "@ai-sdk/google": "0.0.23",
+    "@ai-sdk/google": "^0.0.23",
     "@auth/mongodb-adapter": "^3.7.3",
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
